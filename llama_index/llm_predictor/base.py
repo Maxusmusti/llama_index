@@ -22,6 +22,7 @@ from llama_index.constants import (
 from llama_index.langchain_helpers.streaming import StreamingGeneratorCallbackHandler
 from llama_index.llm_predictor.openai_utils import openai_modelname_to_contextsize
 from llama_index.prompts.base import Prompt
+from llama_index.prompts.prompts import SimpleInputPrompt
 from llama_index.utils import (
     ErrorToRetry,
     globals_helper,
@@ -155,7 +156,13 @@ class LLMPredictor(BaseLLMPredictor):
         retry_on_throttling (bool): Whether to retry on rate limit errors.
             Defaults to true.
 
-        cache (Optional[langchain.cache.BaseCache]) : use cached result for LLM
+        cache (Optional[langchain.cache.BaseCache]): Use cached result for LLM
+
+        system_prompt (Optional[str]): System-wide prompt to be prepended
+            to all input prompts, used to guide system "decision making"
+
+        query_wrapper_prompt (Optional[SimpleInputPrompt]): A format to wrap
+            passed-in input queries.
     """
 
     def __init__(
@@ -164,6 +171,8 @@ class LLMPredictor(BaseLLMPredictor):
         retry_on_throttling: bool = True,
         cache: Optional[BaseCache] = None,
         callback_manager: Optional[CallbackManager] = None,
+        system_prompt: Optional[str] = None,
+        query_wrapper_prompt: Optional[SimpleInputPrompt] = None,
     ) -> None:
         """Initialize params."""
         self._llm = llm or OpenAI(
@@ -176,6 +185,8 @@ class LLMPredictor(BaseLLMPredictor):
         self._total_tokens_used = 0
         self.flag = True
         self._last_token_usage: Optional[int] = None
+        self.system_prompt = system_prompt
+        self.query_wrapper_prompt = query_wrapper_prompt
 
     @property
     def llm(self) -> BaseLanguageModel:
@@ -203,6 +214,14 @@ class LLMPredictor(BaseLLMPredictor):
         # Note: we don't pass formatted_prompt to llm_chain.predict because
         # langchain does the same formatting under the hood
         full_prompt_args = prompt.get_full_format_args(prompt_args)
+        if self.query_wrapper_prompt:
+            full_prompt_args["query_str"] = self.query_prompt.format(
+                query_str=full_prompt_args["query_str"]
+            )
+        if self.system_prompt:
+            full_prompt_args[
+                "query_str"
+            ] = f"{self.system_prompt} {full_prompt_args['query_str']}"
         if self.retry_on_throttling:
             llm_prediction = retry_on_exceptions_with_backoff(
                 lambda: llm_chain.predict(**full_prompt_args),
@@ -325,6 +344,14 @@ class LLMPredictor(BaseLLMPredictor):
         # Note: we don't pass formatted_prompt to llm_chain.predict because
         # langchain does the same formatting under the hood
         full_prompt_args = prompt.get_full_format_args(prompt_args)
+        if self.query_wrapper_prompt:
+            full_prompt_args["query_str"] = self.query_prompt.format(
+                query_str=full_prompt_args["query_str"]
+            )
+        if self.system_prompt:
+            full_prompt_args[
+                "query_str"
+            ] = f"{self.system_prompt} {full_prompt_args['query_str']}"
         # TODO: support retry on throttling
         llm_prediction = await llm_chain.apredict(**full_prompt_args)
         return llm_prediction
