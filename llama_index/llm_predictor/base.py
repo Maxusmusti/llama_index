@@ -215,7 +215,7 @@ class LLMPredictor(BaseLLMPredictor):
         # langchain does the same formatting under the hood
         full_prompt_args = prompt.get_full_format_args(prompt_args)
         if self.query_wrapper_prompt:
-            full_prompt_args["query_str"] = self.query_prompt.format(
+            full_prompt_args["query_str"] = self.query_wrapper_prompt.format(
                 query_str=full_prompt_args["query_str"]
             )
         if self.system_prompt:
