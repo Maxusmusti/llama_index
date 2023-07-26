@@ -120,6 +120,9 @@ class LLMPredictor(BaseLLMPredictor):
             formatted_prompt = messages_to_prompt(messages)
         else:
             formatted_prompt = prompt.format(llm=self._llm, **prompt_args)
+            print("\n--------------INCOMING QUERY---------------\n")
+            print(formatted_prompt)
+            print("\n---------------END OF QUERY----------------\n")
             response = self._llm.complete(formatted_prompt)
             output = response.text
 
